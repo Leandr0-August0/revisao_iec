@@ -1,0 +1,68 @@
+name: CI/CD Pipeline revisão de iec
+
+# Quando executar este workflow
+on:
+  # Executa quando houver push na branch main ou develop
+  push:
+    branches: [ main, develop ]
+    paths-ignore: 
+      - 'docs/**'
+      - 'README.md'
+      - 'LICENSE'
+  # Executa quando houver pull request na branch main
+  pull_request:
+    branches: [ main ]
+    paths-ignore: 
+      - 'docs/**'
+      - 'README.md'
+      - 'LICENSE'
+
+jobs:
+  # Job 1: CI - Testes e validação
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+    # Passo 1: Baixar o código do repositório
+    - name: Checkout code
+      uses: actions/checkout@v4
+    # Passo 2: Configurar Java 21
+    - name: Set up Java 21
+      uses: actions/setup-java@v4
+      with:
+        java-version: '21'
+        distribution: 'temurin'
+    # Passo 3: Executar testes
+    - name: Run tests
+      run: mvn -B verify --file pom.xml
+
+  # Job 2: CD - Deploy e artefatos
+  cd:
+    # Só executa se o job 'ci' passou com sucesso
+    needs: ci
+
+    # Só roda em push direto no branch 'main' (não em Pull Requests)
+    if: github.ref == 'refs/heads/main'
+
+    # Sistema operacional para executar
+    runs-on: ubuntu-latest
+
+    # Lista de passos (steps) do job
+    steps:
+    # Passo 1: Baixar o código do repositório
+    - name: Checkout code
+      uses: actions/checkout@v4
+    # Passo 2: Configurar Java 21
+    - name: Set up Java 21
+      uses: actions/setup-java@v4
+      with:
+        java-version: '21'
+        distribution: 'temurin'
+    # Passo 3: Gerar JAR para deploy
+    - name: Gerar JAR para deploy
+      run: mvn -B package --file pom.xml -DskipTests
+    # Passo 4: Upload JAR para deploy
+    - name: Upload JAR para deploy
+      uses: actions/upload-artifact@v4
+      with:
+        name: app-jar
+        path: target/*.jar
